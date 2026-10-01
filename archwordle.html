@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ArchWordle — Grade 11</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root {
+  --ink: #1C1E21; --sub: #6B7280; --line: #D8D5CC;
+  --bg: #FAF9F6; --card: #FFFFFF;
+  --accent: #2563EB;
+  --green: #6AAA64; --yellow: #C9B458; --gray: #787C7E;
+  --key-bg: #D3D6DA; --key-text: #1C1E21;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #EDEDED; --sub: #9AA0A6; --line: #3A3A3C;
+    --bg: #121213; --card: #1E1E1F;
+    --key-bg: #565758; --key-text: #EDEDED;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #EDEDED; --sub: #9AA0A6; --line: #3A3A3C;
+  --bg: #121213; --card: #1E1E1F;
+  --key-bg: #565758; --key-text: #EDEDED;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  min-height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 12px 32px;
+}
+.wrap { width: 100%; max-width: 460px; }
+header { text-align: center; margin-bottom: 6px; }
+h1 { font-size: 22px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -0.02em; }
+.sub { font-size: 13px; color: var(--sub); margin: 0 0 14px; }
+.meta-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.pill { font-size: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--sub); }
+#cycle-select {
+  font-size: 13px; font-weight: 700; color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+  max-width: 100%;
+}
+#board {
+  display: flex; flex-direction: column; gap: 6px; margin: 0 auto 16px;
+  align-items: center;
+}
+.row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
+.tile {
+  width: 34px; height: 34px; border: 2px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; text-transform: uppercase;
+  border-radius: 4px; background: var(--card); color: var(--ink);
+  transition: transform 0.15s;
+  flex: none;
+}
+.tile.filled { border-color: var(--sub); }
+.tile.green { background: var(--green); border-color: var(--green); color: #fff; }
+.tile.yellow { background: var(--yellow); border-color: var(--yellow); color: #fff; }
+.tile.gray { background: var(--gray); border-color: var(--gray); color: #fff; }
+#message {
+  min-height: 20px; text-align: center; font-size: 14px; font-weight: 700;
+  margin-bottom: 10px; color: var(--accent);
+}
+#keyboard { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.krow { display: flex; gap: 5px; }
+.key {
+  background: var(--key-bg); color: var(--key-text); border: none;
+  border-radius: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+  padding: 0; height: 42px; min-width: 28px; flex: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.key.wide { flex: 1.6; font-size: 10px; }
+.key.symbol { flex: 0.8; font-size: 16px; }
+.key.space { flex: 3; font-size: 11px; }
+.key.green { background: var(--green); color: #fff; }
+.key.yellow { background: var(--yellow); color: #fff; }
+.key.gray { background: var(--gray); color: #fff; }
+#result-panel {
+  display: none; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 16px; margin-top: 14px; text-align: center;
+}
+#result-panel.show { display: block; }
+#result-term { font-size: 18px; font-weight: 800; margin: 0 0 4px; }
+#result-def { font-size: 13.5px; color: var(--sub); margin: 0 0 12px; line-height: 1.4; }
+button.action {
+  background: var(--accent); color: #fff; border: none; border-radius: 999px;
+  font-size: 14px; font-weight: 700; padding: 10px 20px; cursor: pointer;
+}
+.back-link {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+  color: var(--sub); text-decoration: none; margin-bottom: 10px;
+}
+.back-link:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<a class="back-link" href="index.html">&larr; Back to Games</a>
+<h1>ArchWordle</h1>
+<p class="sub">Guess this year's architecture vocabulary — one term at a time.</p>
+</header>
+<div class="meta-row">
+  <select id="cycle-select"></select>
+</div>
+<div class="meta-row">
+  <span class="pill" id="length-pill">7 letters</span>
+  <span class="pill" id="guess-pill">Guess 1 of 6</span>
+</div>
+<div id="board"></div>
+<div id="message"></div>
+<div id="keyboard"></div>
+<div id="result-panel">
+  <p id="result-term"></p>
+  <p id="result-def"></p>
+  <button class="action" id="new-word-btn">New word</button>
+</div>
+</div>
+<script>
+const CYCLES = [
+  { num: 1, title: "IBC & Climate Change", words: [
+    {term:"health safety welfare", display:"Health Safety Welfare", def:"The core purpose of building codes — protecting the health, safety, and welfare of building occupants and the public."},
+    {term:"occupancy group", def:"A code classification that groups buildings by their use, which determines which safety requirements apply."},
+    {term:"building height", def:"The vertical measurement of a building used by code to determine construction type and safety requirements."},
+    {term:"building area", def:"The total floor area of a building, used by code to determine limits based on construction type and occupancy."},
+    {term:"exit", def:"The fully enclosed, protected portion of a means of egress between the exit access and the exit discharge."},
+    {term:"exit access", def:"The portion of a means of egress leading from any point in a building to an exit."},
+    {term:"exit discharge", def:"The portion of a means of egress between the exit and the public way outside the building."},
+    {term:"climate change", def:"A long-term shift in global temperatures and weather patterns, largely driven by human greenhouse gas emissions."},
+    {term:"greenhouse gasses", def:"Gases like carbon dioxide and methane that trap heat in the atmosphere and drive climate change."},
+    {term:"integrative process", def:"A sustainable design approach where the whole project team collaborates from the earliest phases, rather than working in isolated steps."},
+    {term:"commissioning", def:"The process of verifying that a building's systems are designed, installed, and calibrated to perform as intended."},
+    {term:"passive solar design", def:"Designing a building's orientation, glazing, and mass to capture and use the sun's heat and light without mechanical systems."},
+  ]},
+  { num: 2, title: "ADA, LEED & Alternative Rating Systems", words: [
+    {term:"reasonable accommodation", def:"A modification to a rule, policy, or space that allows a person with a disability equal access and opportunity."},
+    {term:"disability", def:"A physical or mental impairment that substantially limits one or more major life activities."},
+    {term:"scope", def:"The defined boundaries of what a code, standard, or project requirement actually applies to."},
+    {term:"leed", display:"LEED", def:"Leadership in Energy and Environmental Design — the USGBC's green building certification rating system."},
+    {term:"credit categories", def:"The major topic areas (like water efficiency or indoor air quality) that a rating system like LEED awards points within."},
+    {term:"prerequisites", def:"The mandatory requirements a project must meet before it can earn any certification points at all."},
+    {term:"brownfield", def:"A previously developed site, often contaminated, that requires remediation before it can be redeveloped."},
+    {term:"adaptive reuse", def:"Renovating an existing building for a new use rather than demolishing it, preserving embodied resources."},
+    {term:"gray water system", def:"A system that captures and reuses relatively clean wastewater from sinks and showers, typically for irrigation."},
+    {term:"well", display:"WELL", def:"A building certification system from IWBI focused on occupant health and wellness rather than environmental impact alone."},
+    {term:"sites", display:"SITES", def:"A rating system for sustainable landscape design, addressing everything on a site outside the building itself."},
+    {term:"gresb", display:"GRESB", def:"A benchmark that evaluates the sustainability performance of entire real estate portfolios and funds, not single buildings."},
+    {term:"volatile organic compounds", def:"Chemicals that off-gas from materials like paints and adhesives, degrading indoor air quality."},
+  ]},
+  { num: 3, title: "OSHA & Electrical Systems", words: [
+    {term:"competent person", def:"A jobsite worker capable of identifying hazards and authorized to take prompt corrective action."},
+    {term:"extension ladder", def:"A two-section ladder that slides to adjust length, commonly used for exterior access at height."},
+    {term:"fall protection", def:"Equipment and procedures used to prevent or arrest a fall from an elevated jobsite surface."},
+    {term:"guard rails", def:"Barriers installed at an elevated edge to prevent workers from falling."},
+    {term:"osha", display:"OSHA", def:"The Occupational Safety and Health Administration — the federal agency that regulates workplace safety."},
+    {term:"ppe", display:"PPE", def:"Personal Protective Equipment — gear like hard hats and safety glasses that protects a worker from jobsite hazards."},
+    {term:"sds", display:"SDS", def:"Safety Data Sheet — a document listing the hazards and safe handling procedures for a chemical product."},
+    {term:"reflected ceiling plan", def:"A drawing showing the ceiling plane and its fixtures as if reflected in a mirror on the floor."},
+    {term:"electrical plan", def:"A drawing showing the layout of outlets, switches, and circuits throughout a building."},
+    {term:"dedicated outlet", def:"An outlet wired to its own circuit, reserved for a single specific appliance."},
+    {term:"circuit breaker", def:"A safety device that automatically interrupts power when a circuit is overloaded or faulted."},
+    {term:"single pole switch", def:"A basic switch that controls a light fixture from a single location."},
+    {term:"dimmer switch", def:"A switch that allows a light fixture's brightness to be adjusted rather than simply on or off."},
+    {term:"3-way switch", display:"3-Way Switch", def:"A switch setup that allows one light fixture to be controlled from two separate locations."},
+    {term:"ac power", display:"AC Power", def:"Alternating Current — the type of electrical power typically delivered to homes from the utility grid."},
+    {term:"dc power", display:"DC Power", def:"Direct Current — the type of power produced by sources like solar panels and batteries."},
+  ]},
+  { num: 4, title: "Plumbing Systems", words: [
+    {term:"lavatory", def:"The plumbing-code term for a bathroom sink."},
+    {term:"water closet", def:"The plumbing-code term for a toilet."},
+    {term:"shut off valve", def:"A valve that stops water flow to a fixture, allowing repairs without shutting off the whole house."},
+    {term:"supply", def:"The piping that delivers fresh water to a plumbing fixture."},
+    {term:"waste", def:"The piping that carries used water and sewage away from a plumbing fixture."},
+    {term:"gallons per flush", def:"A water-efficiency measurement for how much water a toilet uses in a single flush."},
+    {term:"gallons per minute", def:"A water-efficiency measurement for how much water a fixture like a faucet or showerhead uses over time."},
+    {term:"mixer", def:"A faucet or valve that blends hot and cold water into a single controlled stream."},
+    {term:"faucet", def:"The fixture that controls and delivers water at a sink, tub, or shower."},
+    {term:"drop-in fixture", def:"A sink installed into a countertop cutout, with its rim resting on the surface."},
+    {term:"vessel", def:"A sink that sits entirely above the countertop surface rather than being recessed into it."},
+    {term:"undermount", def:"A sink mounted beneath the countertop, creating a seamless surface at the counter edge."},
+    {term:"trough", def:"A long, shallow basin-style sink, often designed to serve multiple users at once."},
+    {term:"pedestal", def:"A sink supported by a column or base rather than a vanity cabinet."},
+    {term:"vanity", def:"A cabinet unit that houses a bathroom sink and provides storage beneath it."},
+    {term:"centerset", def:"A faucet style where the handles and spout are mounted together on a single, compact base."},
+    {term:"single hole", def:"A faucet style that mounts through one hole in the sink or countertop, combining handle and spout."},
+    {term:"widespread", def:"A faucet style with separate handles and spout mounted independently across the sink deck."},
+    {term:"gray water", def:"Relatively clean wastewater from sinks and showers that can be reused, typically for irrigation."},
+  ]},
+  { num: 5, title: "HVAC Systems", words: [
+    {term:"duct", def:"A channel, usually sheet metal, that carries heated or cooled air through a building."},
+    {term:"hot water system", def:"An HVAC system that heats a space by circulating hot water through pipes or radiators."},
+    {term:"heat pump", def:"An HVAC system that transfers heat into or out of a building rather than generating it directly."},
+    {term:"zones", def:"Separate areas of a building that an HVAC system can heat or cool independently."},
+    {term:"thermostat", def:"The control device that senses temperature and signals an HVAC system to turn on or off."},
+    {term:"radiant heat", def:"Heat delivered directly through a surface, like a floor, rather than through circulated air."},
+    {term:"heat exchange", def:"The transfer of thermal energy between two substances, such as air and refrigerant, without them mixing."},
+    {term:"solar gain", def:"Heat added to a space by sunlight passing through windows or striking exterior surfaces."},
+    {term:"natural ventilation", def:"Air exchange achieved through openings like windows, without mechanical assistance."},
+    {term:"mechanical ventilation", def:"Air exchange achieved using fans and ductwork rather than relying on natural airflow."},
+    {term:"u-factor", display:"U-Factor", def:"A measurement of a material's rate of heat transfer — the lower the number, the better it insulates."},
+    {term:"furnace", def:"A heating appliance that warms air and distributes it through ductwork."},
+    {term:"boiler", def:"A heating appliance that heats water to distribute warmth through pipes or radiators."},
+    {term:"radiant floor", def:"A heating system that warms a space by circulating heat through the floor surface itself."},
+  ]},
+  { num: 6, title: "Neighborhood Evolution, Alternative Materials & Business", words: [
+    {term:"mill town", def:"A community built around and economically dependent on a single mill or factory."},
+    {term:"company town", def:"A town where a single employer owns most of the housing and local infrastructure."},
+    {term:"development", def:"A planned, organized construction project, often covering multiple lots or an entire neighborhood."},
+    {term:"homeowner's association", def:"An organization that enforces private rules for a neighborhood, covering things like exterior appearance and shared amenities."},
+    {term:"levittown", display:"Levittown", def:"A landmark mid-20th-century suburban development built using mass-production, assembly-line construction methods."},
+    {term:"redlining", def:"A discriminatory historical practice of denying mortgages or services to residents of certain neighborhoods, often based on race."},
+    {term:"sips", display:"SIPs", def:"Structural Insulated Panels — prefabricated wall or roof panels combining rigid foam insulation between structural facings."},
+    {term:"icfs", display:"ICFs", def:"Insulated Concrete Forms — stay-in-place foam forms filled with concrete to create an insulated structural wall."},
+    {term:"trusses", def:"Prefabricated, engineered structural frames used to efficiently span long distances with less material."},
+    {term:"lvl", display:"LVL", def:"Laminated Veneer Lumber — an engineered wood product made by gluing thin wood veneers together in parallel layers."},
+    {term:"psl", display:"PSL", def:"Parallel Strand Lumber — an engineered wood product made from long wood strands bonded under pressure."},
+    {term:"osb", display:"OSB", def:"Oriented Strand Board — an engineered wood panel made from compressed wood strands bonded with resin."},
+    {term:"glulam", def:"Glue-laminated timber, created by bonding together multiple layers of dimensional lumber into one structural member."},
+    {term:"i-joist", display:"I-Joist", def:"An engineered floor or roof framing member shaped like the letter I for efficient long-span strength."},
+    {term:"principal", def:"The owner of an architecture firm, holding ultimate responsibility for its projects."},
+    {term:"project manager", def:"The firm role responsible for coordinating a project's schedule, budget, and team on a day-to-day basis."},
+    {term:"fixed fee", def:"A firm's fee structure charging one agreed total price for a project, regardless of hours worked."},
+    {term:"percentage fee", def:"A firm's fee structure calculated as a percentage of the total construction cost."},
+  ]},
+  { num: 7, title: "Permitting, Alternative Materials & Client Dynamics", words: [
+    {term:"planning and zoning", def:"The local government process that regulates how land can be used and developed."},
+    {term:"board of appeals", def:"A local body that reviews and decides requests for variances from standard zoning rules."},
+    {term:"variance", def:"An approved exception allowing a property to deviate from standard zoning requirements."},
+    {term:"permit", def:"Official government approval required before construction work can legally begin."},
+    {term:"request for information", def:"A formal question posed to clarify project details during design or construction."},
+    {term:"client", def:"The person or organization that hires an architect and ultimately owns the project."},
+    {term:"cellulose", def:"An insulation material made primarily from recycled paper and plant fiber."},
+    {term:"r-value", display:"R-Value", def:"A measurement of a material's resistance to heat flow — higher values mean better insulation."},
+    {term:"span", def:"The distance a structural member can safely cross without additional support."},
+    {term:"span tables", def:"Reference charts used to determine the correct size and spacing of framing members for a given span."},
+  ]},
+  { num: 8, title: "The Project Path, Licensure & Alternative Techniques", words: [
+    {term:"schematic design", def:"The first phase of a project, establishing the basic concept, scale, and relationships of the design."},
+    {term:"design development", def:"The project phase where schematic ideas are refined into coordinated, buildable systems and materials."},
+    {term:"construction documents", def:"The detailed drawings and specifications used to bid and build a project."},
+    {term:"bidding", def:"The project phase where contractors submit pricing and proposals to win the construction contract."},
+    {term:"construction administration", def:"The final project phase, where the architect oversees construction to ensure it matches the design intent."},
+    {term:"request for proposal", def:"A formal solicitation a firm responds to when competing to win a project."},
+    {term:"axp", display:"AXP", def:"The Architectural Experience Program — the required practical experience hours before architectural licensure."},
+    {term:"ncarb", display:"NCARB", def:"The National Council of Architectural Registration Boards — the organization coordinating licensure standards nationally."},
+    {term:"registered architect", def:"A person who has met all education, experience, and examination requirements to legally practice architecture."},
+    {term:"accredited program", def:"A professional degree program that meets the formal educational standards required for architectural licensure."},
+  ]},
+  { num: 9, title: "Alternative Construction Techniques (Continued)", words: [
+    {term:"cross laminated timber", def:"An engineered wood panel made of layers of lumber stacked at perpendicular angles and bonded together."},
+    {term:"dowel laminated timber", def:"An engineered wood panel similar to CLT, but using wood dowels instead of adhesive to bind its layers."},
+    {term:"post-industrial recycled content", def:"Material recycled from manufacturing scrap or waste, before it ever reached a consumer."},
+    {term:"post-consumer recycled content", def:"Material reclaimed after being used and discarded by a consumer."},
+  ]},
+];
+
+const MAX_GUESSES = 6;
+let target, guesses, currentGuess, gameOver, wordLen;
+
+function populateCycleSelect() {
+  const sel = document.getElementById("cycle-select");
+  const allOpt = document.createElement("option");
+  allOpt.value = "all";
+  allOpt.textContent = "All Cycles";
+  sel.appendChild(allOpt);
+  CYCLES.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = String(c.num);
+    const rangeLabel = c.num === 1 ? "Cycle 1" : "Cycles 1\u2013" + c.num;
+    opt.textContent = rangeLabel + " \u2014 through " + c.title;
+    sel.appendChild(opt);
+  });
+  sel.value = "all";
+  sel.addEventListener("change", startGame);
+}
+
+function dedupedPool(cycleList) {
+  const seen = new Set();
+  const pool = [];
+  cycleList.forEach(c => c.words.forEach(w => {
+    if (!seen.has(w.term)) { seen.add(w.term); pool.push(w); }
+  }));
+  return pool;
+}
+
+function getActivePool() {
+  const sel = document.getElementById("cycle-select");
+  if (sel.value === "all") {
+    return dedupedPool(CYCLES);
+  }
+  const selectedNum = parseInt(sel.value, 10);
+  const cumulativeCycles = CYCLES.filter(c => c.num <= selectedNum);
+  return dedupedPool(cumulativeCycles);
+}
+
+function pickWord() {
+  const pool = getActivePool();
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function startGame() {
+  const entry = pickWord();
+  target = entry;
+  wordLen = entry.term.length;
+  guesses = [];
+  currentGuess = new Array(wordLen).fill("");
+  gameOver = false;
+  document.getElementById("result-panel").classList.remove("show");
+  document.getElementById("message").textContent = "";
+  const wordCount = entry.term.split(/[\s\-\/]+/).length;
+  document.getElementById("length-pill").textContent = wordLen + " characters" + (wordCount > 1 ? " \u00b7 " + wordCount + " words" : "");
+  document.getElementById("guess-pill").textContent = "Guess 1 of " + MAX_GUESSES;
+  renderBoard();
+  renderKeyboard();
+}
+
+function renderBoard() {
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+  for (let r = 0; r < MAX_GUESSES; r++) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const guessData = guesses[r];
+    const isCurrent = r === guesses.length;
+    for (let c = 0; c < wordLen; c++) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      let letter = "";
+      if (guessData) {
+        letter = guessData.chars[c];
+        tile.classList.add(guessData.states[c]);
+      } else if (isCurrent && currentGuess[c]) {
+        letter = currentGuess[c];
+        tile.classList.add("filled");
+      }
+      tile.textContent = letter === " " ? "\u2423" : letter;
+      row.appendChild(tile);
+    }
+    board.appendChild(row);
+  }
+}
+
+function evaluateGuess(guessChars) {
+  const targetChars = target.term.toLowerCase().split("");
+  const states = new Array(wordLen).fill("gray");
+  const counts = {};
+  targetChars.forEach(ch => { counts[ch] = (counts[ch] || 0) + 1; });
+
+  for (let i = 0; i < wordLen; i++) {
+    if (guessChars[i] === targetChars[i]) {
+      states[i] = "green";
+      counts[guessChars[i]]--;
+    }
+  }
+  for (let i = 0; i < wordLen; i++) {
+    if (states[i] === "green") continue;
+    const ch = guessChars[i];
+    if (counts[ch] > 0) {
+      states[i] = "yellow";
+      counts[ch]--;
+    }
+  }
+  return { chars: guessChars, states };
+}
+
+const keyStateRank = { gray: 0, yellow: 1, green: 2 };
+const keyStates = {};
+
+function updateKeyStates(evaluated) {
+  evaluated.chars.forEach((ch, i) => {
+    const st = evaluated.states[i];
+    const existing = keyStates[ch];
+    if (!existing || keyStateRank[st] > keyStateRank[existing]) {
+      keyStates[ch] = st;
+    }
+  });
+}
+
+function renderKeyboard() {
+  const rows = ["qwertyuiop", "asdfghjkl", "ENTERzxcvbnmBACK", "SYMBOLS"];
+  const kb = document.getElementById("keyboard");
+  kb.innerHTML = "";
+  rows.forEach(rowStr => {
+    const krow = document.createElement("div");
+    krow.className = "krow";
+    if (rowStr === "SYMBOLS") {
+      const symbolKeys = [
+        { key: "-", label: "-", cls: "symbol" },
+        { key: " ", label: "space", cls: "space" },
+        { key: "/", label: "/", cls: "symbol" },
+      ];
+      symbolKeys.forEach(sk => {
+        const btn = document.createElement("button");
+        btn.className = "key " + sk.cls;
+        btn.textContent = sk.label;
+        if (keyStates[sk.key]) btn.classList.add(keyStates[sk.key]);
+        btn.addEventListener("click", () => handleKey(sk.key));
+        krow.appendChild(btn);
+      });
+      kb.appendChild(krow);
+      return;
+    }
+    let keys;
+    if (rowStr.includes("ENTER")) {
+      keys = ["ENTER", ...rowStr.replace("ENTER", "").replace("BACK", "").split(""), "BACK"];
+    } else {
+      keys = rowStr.split("");
+    }
+    keys.forEach(k => {
+      const btn = document.createElement("button");
+      btn.className = "key" + ((k === "ENTER" || k === "BACK") ? " wide" : "");
+      btn.textContent = k === "BACK" ? "\u232B" : (k === "ENTER" ? "Enter" : k);
+      if (k.length === 1 && keyStates[k]) {
+        btn.classList.add(keyStates[k]);
+      }
+      btn.addEventListener("click", () => handleKey(k === "ENTER" ? "Enter" : (k === "BACK" ? "Backspace" : k)));
+      krow.appendChild(btn);
+    });
+    kb.appendChild(krow);
+  });
+}
+
+function showMessage(text) {
+  const el = document.getElementById("message");
+  el.textContent = text;
+  if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 1800);
+}
+
+function handleKey(key) {
+  if (gameOver) return;
+  if (key === "Enter") {
+    if (currentGuess.some(c => !c)) {
+      showMessage("Not enough characters");
+      return;
+    }
+    const evaluated = evaluateGuess(currentGuess.slice());
+    guesses.push(evaluated);
+    updateKeyStates(evaluated);
+    const won = currentGuess.join("") === target.term.toLowerCase();
+    currentGuess = new Array(wordLen).fill("");
+    renderBoard();
+    renderKeyboard();
+
+    if (won) {
+      gameOver = true;
+      endGame(true);
+      return;
+    }
+    if (guesses.length >= MAX_GUESSES) {
+      gameOver = true;
+      endGame(false);
+      return;
+    }
+    document.getElementById("guess-pill").textContent = "Guess " + (guesses.length + 1) + " of " + MAX_GUESSES;
+  } else if (key === "Backspace") {
+    for (let i = wordLen - 1; i >= 0; i--) {
+      if (currentGuess[i]) { currentGuess[i] = ""; break; }
+    }
+    renderBoard();
+  } else if (/^[a-z \-\/]$/i.test(key) && key.length === 1) {
+    for (let i = 0; i < wordLen; i++) {
+      if (!currentGuess[i]) { currentGuess[i] = key.toLowerCase(); break; }
+    }
+    renderBoard();
+  }
+}
+
+function endGame(won) {
+  document.getElementById("message").textContent = won ? "Nice work!" : "Out of guesses";
+  const panel = document.getElementById("result-panel");
+  document.getElementById("result-term").textContent = target.display || (target.term.charAt(0).toUpperCase() + target.term.slice(1));
+  document.getElementById("result-def").textContent = target.def;
+  panel.classList.add("show");
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") handleKey("Enter");
+  else if (e.key === "Backspace") handleKey("Backspace");
+  else if (e.key === " ") { e.preventDefault(); handleKey(" "); }
+  else if (e.key === "-" || e.key === "/") handleKey(e.key);
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toLowerCase());
+});
+
+document.getElementById("new-word-btn").addEventListener("click", startGame);
+
+populateCycleSelect();
+const urlParams = new URLSearchParams(window.location.search);
+const cycleParam = urlParams.get("cycle");
+if (cycleParam && (cycleParam === "all" || CYCLES.some(c => String(c.num) === cycleParam))) {
+  document.getElementById("cycle-select").value = cycleParam;
+}
+startGame();
+</script>
+</body>
+</html>

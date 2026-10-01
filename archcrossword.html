@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ArchCrossword — Grade 11</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root {
+  --ink: #1C1E21; --sub: #6B7280; --line: #D8D5CC;
+  --bg: #FAF9F6; --card: #FFFFFF;
+  --accent: #2563EB; --accent-soft: #EFF4FF;
+  --good: #15803D; --bad: #B91C1C;
+  --cell-bg: #FFFFFF; --cell-block: transparent;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #EDEDED; --sub: #9AA0A6; --line: #3A3A3C;
+    --bg: #121213; --card: #1E1E1F; --accent-soft: #1B2A4A;
+    --cell-bg: #2A2A2C;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #EDEDED; --sub: #9AA0A6; --line: #3A3A3C;
+  --bg: #121213; --card: #1E1E1F; --accent-soft: #1B2A4A;
+  --cell-bg: #2A2A2C;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  min-height: 100%;
+  padding: 16px 12px 40px;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+header { text-align: center; margin-bottom: 10px; }
+h1 { font-size: 22px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -0.02em; }
+.sub { font-size: 13px; color: var(--sub); margin: 0 0 14px; }
+.controls-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+#cycle-select {
+  font-size: 13px; font-weight: 700; color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+  max-width: 100%;
+}
+button.action {
+  background: var(--accent); color: #fff; border: none; border-radius: 999px;
+  font-size: 13px; font-weight: 700; padding: 8px 16px; cursor: pointer;
+}
+button.action.secondary { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+#message { text-align: center; font-size: 13.5px; font-weight: 700; color: var(--accent); min-height: 18px; margin-bottom: 10px; }
+#grid-wrap { overflow-x: auto; display: flex; justify-content: center; margin-bottom: 18px; -webkit-overflow-scrolling: touch; }
+#grid {
+  display: grid; gap: 1px; background: var(--line); border: 2px solid var(--line);
+}
+.cell {
+  position: relative; background: var(--cell-bg); width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cell.block { background: transparent; }
+.cell input {
+  width: 100%; height: 100%; border: none; background: transparent; text-align: center;
+  font-size: 15px; font-weight: 700; text-transform: uppercase; color: var(--ink);
+  padding: 0; outline: none;
+}
+.cell .num { position: absolute; top: 1px; left: 2px; font-size: 8px; font-weight: 700; color: var(--sub); }
+.cell.active { background: var(--accent-soft); }
+.cell.correct input { color: var(--good); }
+.cell.incorrect input { color: var(--bad); }
+.clues { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.clue-col { flex: 1; min-width: 240px; max-width: 340px; }
+.clue-col h3 { font-size: 14px; margin: 0 0 8px; color: var(--accent); }
+.clue-item { font-size: 12.5px; margin-bottom: 7px; line-height: 1.35; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.clue-item.active { background: var(--accent-soft); }
+.clue-item b { color: var(--ink); }
+#result-panel {
+  display: none; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 16px; margin-top: 16px;
+}
+#result-panel.show { display: block; }
+#result-panel h3 { font-size: 15px; margin: 0 0 10px; }
+.reveal-item { font-size: 12.5px; margin-bottom: 6px; }
+.reveal-item b { color: var(--accent); }
+.back-link {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+  color: var(--sub); text-decoration: none; margin-bottom: 10px;
+}
+.back-link:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<a class="back-link" href="index.html">&larr; Back to Games</a>
+<h1>ArchCrossword</h1>
+<p class="sub">This year's architecture vocabulary, cycle by cycle.</p>
+</header>
+<div class="controls-row">
+  <select id="cycle-select"></select>
+  <button class="action" id="new-puzzle-btn">New Puzzle</button>
+  <button class="action secondary" id="check-btn">Check</button>
+  <button class="action secondary" id="reveal-btn">Reveal</button>
+</div>
+<div id="message"></div>
+<div id="grid-wrap"><div id="grid"></div></div>
+<div class="clues">
+  <div class="clue-col"><h3>Across</h3><div id="across-list"></div></div>
+  <div class="clue-col"><h3>Down</h3><div id="down-list"></div></div>
+</div>
+<div id="result-panel">
+  <h3>Full Solution</h3>
+  <div id="reveal-list"></div>
+</div>
+</div>
+<script>
+const CYCLES = [
+  { num: 1, title: "IBC & Climate Change", words: [
+    {term:"health safety welfare", display:"Health Safety Welfare", def:"The core purpose of building codes — protecting the health, safety, and welfare of building occupants and the public."},
+    {term:"occupancy group", def:"A code classification that groups buildings by their use, which determines which safety requirements apply."},
+    {term:"building height", def:"The vertical measurement of a building used by code to determine construction type and safety requirements."},
+    {term:"building area", def:"The total floor area of a building, used by code to determine limits based on construction type and occupancy."},
+    {term:"exit", def:"The fully enclosed, protected portion of a means of egress between the exit access and the exit discharge."},
+    {term:"exit access", def:"The portion of a means of egress leading from any point in a building to an exit."},
+    {term:"exit discharge", def:"The portion of a means of egress between the exit and the public way outside the building."},
+    {term:"climate change", def:"A long-term shift in global temperatures and weather patterns, largely driven by human greenhouse gas emissions."},
+    {term:"greenhouse gasses", def:"Gases like carbon dioxide and methane that trap heat in the atmosphere and drive climate change."},
+    {term:"integrative process", def:"A sustainable design approach where the whole project team collaborates from the earliest phases, rather than working in isolated steps."},
+    {term:"commissioning", def:"The process of verifying that a building's systems are designed, installed, and calibrated to perform as intended."},
+    {term:"passive solar design", def:"Designing a building's orientation, glazing, and mass to capture and use the sun's heat and light without mechanical systems."},
+  ]},
+  { num: 2, title: "ADA, LEED & Alternative Rating Systems", words: [
+    {term:"reasonable accommodation", def:"A modification to a rule, policy, or space that allows a person with a disability equal access and opportunity."},
+    {term:"disability", def:"A physical or mental impairment that substantially limits one or more major life activities."},
+    {term:"scope", def:"The defined boundaries of what a code, standard, or project requirement actually applies to."},
+    {term:"leed", display:"LEED", def:"Leadership in Energy and Environmental Design — the USGBC's green building certification rating system."},
+    {term:"credit categories", def:"The major topic areas (like water efficiency or indoor air quality) that a rating system like LEED awards points within."},
+    {term:"prerequisites", def:"The mandatory requirements a project must meet before it can earn any certification points at all."},
+    {term:"brownfield", def:"A previously developed site, often contaminated, that requires remediation before it can be redeveloped."},
+    {term:"adaptive reuse", def:"Renovating an existing building for a new use rather than demolishing it, preserving embodied resources."},
+    {term:"gray water system", def:"A system that captures and reuses relatively clean wastewater from sinks and showers, typically for irrigation."},
+    {term:"well", display:"WELL", def:"A building certification system from IWBI focused on occupant health and wellness rather than environmental impact alone."},
+    {term:"sites", display:"SITES", def:"A rating system for sustainable landscape design, addressing everything on a site outside the building itself."},
+    {term:"gresb", display:"GRESB", def:"A benchmark that evaluates the sustainability performance of entire real estate portfolios and funds, not single buildings."},
+    {term:"volatile organic compounds", def:"Chemicals that off-gas from materials like paints and adhesives, degrading indoor air quality."},
+  ]},
+  { num: 3, title: "OSHA & Electrical Systems", words: [
+    {term:"competent person", def:"A jobsite worker capable of identifying hazards and authorized to take prompt corrective action."},
+    {term:"extension ladder", def:"A two-section ladder that slides to adjust length, commonly used for exterior access at height."},
+    {term:"fall protection", def:"Equipment and procedures used to prevent or arrest a fall from an elevated jobsite surface."},
+    {term:"guard rails", def:"Barriers installed at an elevated edge to prevent workers from falling."},
+    {term:"osha", display:"OSHA", def:"The Occupational Safety and Health Administration — the federal agency that regulates workplace safety."},
+    {term:"ppe", display:"PPE", def:"Personal Protective Equipment — gear like hard hats and safety glasses that protects a worker from jobsite hazards."},
+    {term:"sds", display:"SDS", def:"Safety Data Sheet — a document listing the hazards and safe handling procedures for a chemical product."},
+    {term:"reflected ceiling plan", def:"A drawing showing the ceiling plane and its fixtures as if reflected in a mirror on the floor."},
+    {term:"electrical plan", def:"A drawing showing the layout of outlets, switches, and circuits throughout a building."},
+    {term:"dedicated outlet", def:"An outlet wired to its own circuit, reserved for a single specific appliance."},
+    {term:"circuit breaker", def:"A safety device that automatically interrupts power when a circuit is overloaded or faulted."},
+    {term:"single pole switch", def:"A basic switch that controls a light fixture from a single location."},
+    {term:"dimmer switch", def:"A switch that allows a light fixture's brightness to be adjusted rather than simply on or off."},
+    {term:"3-way switch", display:"3-Way Switch", def:"A switch setup that allows one light fixture to be controlled from two separate locations."},
+    {term:"ac power", display:"AC Power", def:"Alternating Current — the type of electrical power typically delivered to homes from the utility grid."},
+    {term:"dc power", display:"DC Power", def:"Direct Current — the type of power produced by sources like solar panels and batteries."},
+  ]},
+  { num: 4, title: "Plumbing Systems", words: [
+    {term:"lavatory", def:"The plumbing-code term for a bathroom sink."},
+    {term:"water closet", def:"The plumbing-code term for a toilet."},
+    {term:"shut off valve", def:"A valve that stops water flow to a fixture, allowing repairs without shutting off the whole house."},
+    {term:"supply", def:"The piping that delivers fresh water to a plumbing fixture."},
+    {term:"waste", def:"The piping that carries used water and sewage away from a plumbing fixture."},
+    {term:"gallons per flush", def:"A water-efficiency measurement for how much water a toilet uses in a single flush."},
+    {term:"gallons per minute", def:"A water-efficiency measurement for how much water a fixture like a faucet or showerhead uses over time."},
+    {term:"mixer", def:"A faucet or valve that blends hot and cold water into a single controlled stream."},
+    {term:"faucet", def:"The fixture that controls and delivers water at a sink, tub, or shower."},
+    {term:"drop-in fixture", def:"A sink installed into a countertop cutout, with its rim resting on the surface."},
+    {term:"vessel", def:"A sink that sits entirely above the countertop surface rather than being recessed into it."},
+    {term:"undermount", def:"A sink mounted beneath the countertop, creating a seamless surface at the counter edge."},
+    {term:"trough", def:"A long, shallow basin-style sink, often designed to serve multiple users at once."},
+    {term:"pedestal", def:"A sink supported by a column or base rather than a vanity cabinet."},
+    {term:"vanity", def:"A cabinet unit that houses a bathroom sink and provides storage beneath it."},
+    {term:"centerset", def:"A faucet style where the handles and spout are mounted together on a single, compact base."},
+    {term:"single hole", def:"A faucet style that mounts through one hole in the sink or countertop, combining handle and spout."},
+    {term:"widespread", def:"A faucet style with separate handles and spout mounted independently across the sink deck."},
+    {term:"gray water", def:"Relatively clean wastewater from sinks and showers that can be reused, typically for irrigation."},
+  ]},
+  { num: 5, title: "HVAC Systems", words: [
+    {term:"duct", def:"A channel, usually sheet metal, that carries heated or cooled air through a building."},
+    {term:"hot water system", def:"An HVAC system that heats a space by circulating hot water through pipes or radiators."},
+    {term:"heat pump", def:"An HVAC system that transfers heat into or out of a building rather than generating it directly."},
+    {term:"zones", def:"Separate areas of a building that an HVAC system can heat or cool independently."},
+    {term:"thermostat", def:"The control device that senses temperature and signals an HVAC system to turn on or off."},
+    {term:"radiant heat", def:"Heat delivered directly through a surface, like a floor, rather than through circulated air."},
+    {term:"heat exchange", def:"The transfer of thermal energy between two substances, such as air and refrigerant, without them mixing."},
+    {term:"solar gain", def:"Heat added to a space by sunlight passing through windows or striking exterior surfaces."},
+    {term:"natural ventilation", def:"Air exchange achieved through openings like windows, without mechanical assistance."},
+    {term:"mechanical ventilation", def:"Air exchange achieved using fans and ductwork rather than relying on natural airflow."},
+    {term:"u-factor", display:"U-Factor", def:"A measurement of a material's rate of heat transfer — the lower the number, the better it insulates."},
+    {term:"furnace", def:"A heating appliance that warms air and distributes it through ductwork."},
+    {term:"boiler", def:"A heating appliance that heats water to distribute warmth through pipes or radiators."},
+    {term:"radiant floor", def:"A heating system that warms a space by circulating heat through the floor surface itself."},
+  ]},
+  { num: 6, title: "Neighborhood Evolution, Alternative Materials & Business", words: [
+    {term:"mill town", def:"A community built around and economically dependent on a single mill or factory."},
+    {term:"company town", def:"A town where a single employer owns most of the housing and local infrastructure."},
+    {term:"development", def:"A planned, organized construction project, often covering multiple lots or an entire neighborhood."},
+    {term:"homeowner's association", def:"An organization that enforces private rules for a neighborhood, covering things like exterior appearance and shared amenities."},
+    {term:"levittown", display:"Levittown", def:"A landmark mid-20th-century suburban development built using mass-production, assembly-line construction methods."},
+    {term:"redlining", def:"A discriminatory historical practice of denying mortgages or services to residents of certain neighborhoods, often based on race."},
+    {term:"sips", display:"SIPs", def:"Structural Insulated Panels — prefabricated wall or roof panels combining rigid foam insulation between structural facings."},
+    {term:"icfs", display:"ICFs", def:"Insulated Concrete Forms — stay-in-place foam forms filled with concrete to create an insulated structural wall."},
+    {term:"trusses", def:"Prefabricated, engineered structural frames used to efficiently span long distances with less material."},
+    {term:"lvl", display:"LVL", def:"Laminated Veneer Lumber — an engineered wood product made by gluing thin wood veneers together in parallel layers."},
+    {term:"psl", display:"PSL", def:"Parallel Strand Lumber — an engineered wood product made from long wood strands bonded under pressure."},
+    {term:"osb", display:"OSB", def:"Oriented Strand Board — an engineered wood panel made from compressed wood strands bonded with resin."},
+    {term:"glulam", def:"Glue-laminated timber, created by bonding together multiple layers of dimensional lumber into one structural member."},
+    {term:"i-joist", display:"I-Joist", def:"An engineered floor or roof framing member shaped like the letter I for efficient long-span strength."},
+    {term:"principal", def:"The owner of an architecture firm, holding ultimate responsibility for its projects."},
+    {term:"project manager", def:"The firm role responsible for coordinating a project's schedule, budget, and team on a day-to-day basis."},
+    {term:"fixed fee", def:"A firm's fee structure charging one agreed total price for a project, regardless of hours worked."},
+    {term:"percentage fee", def:"A firm's fee structure calculated as a percentage of the total construction cost."},
+  ]},
+  { num: 7, title: "Permitting, Alternative Materials & Client Dynamics", words: [
+    {term:"planning and zoning", def:"The local government process that regulates how land can be used and developed."},
+    {term:"board of appeals", def:"A local body that reviews and decides requests for variances from standard zoning rules."},
+    {term:"variance", def:"An approved exception allowing a property to deviate from standard zoning requirements."},
+    {term:"permit", def:"Official government approval required before construction work can legally begin."},
+    {term:"request for information", def:"A formal question posed to clarify project details during design or construction."},
+    {term:"client", def:"The person or organization that hires an architect and ultimately owns the project."},
+    {term:"cellulose", def:"An insulation material made primarily from recycled paper and plant fiber."},
+    {term:"r-value", display:"R-Value", def:"A measurement of a material's resistance to heat flow — higher values mean better insulation."},
+    {term:"span", def:"The distance a structural member can safely cross without additional support."},
+    {term:"span tables", def:"Reference charts used to determine the correct size and spacing of framing members for a given span."},
+  ]},
+  { num: 8, title: "The Project Path, Licensure & Alternative Techniques", words: [
+    {term:"schematic design", def:"The first phase of a project, establishing the basic concept, scale, and relationships of the design."},
+    {term:"design development", def:"The project phase where schematic ideas are refined into coordinated, buildable systems and materials."},
+    {term:"construction documents", def:"The detailed drawings and specifications used to bid and build a project."},
+    {term:"bidding", def:"The project phase where contractors submit pricing and proposals to win the construction contract."},
+    {term:"construction administration", def:"The final project phase, where the architect oversees construction to ensure it matches the design intent."},
+    {term:"request for proposal", def:"A formal solicitation a firm responds to when competing to win a project."},
+    {term:"axp", display:"AXP", def:"The Architectural Experience Program — the required practical experience hours before architectural licensure."},
+    {term:"ncarb", display:"NCARB", def:"The National Council of Architectural Registration Boards — the organization coordinating licensure standards nationally."},
+    {term:"registered architect", def:"A person who has met all education, experience, and examination requirements to legally practice architecture."},
+    {term:"accredited program", def:"A professional degree program that meets the formal educational standards required for architectural licensure."},
+  ]},
+  { num: 9, title: "Alternative Construction Techniques (Continued)", words: [
+    {term:"cross laminated timber", def:"An engineered wood panel made of layers of lumber stacked at perpendicular angles and bonded together."},
+    {term:"dowel laminated timber", def:"An engineered wood panel similar to CLT, but using wood dowels instead of adhesive to bind its layers."},
+    {term:"post-industrial recycled content", def:"Material recycled from manufacturing scrap or waste, before it ever reached a consumer."},
+    {term:"post-consumer recycled content", def:"Material reclaimed after being used and discarded by a consumer."},
+  ]},
+];
+
+const TARGET_WORDS = 14;
+const GRID_SIZE = 40;
+
+function normalize(term) {
+  return term.toLowerCase().replace(/[^a-z]/g, "");
+}
+function wordCountOf(term) {
+  return term.split(/[\s\-\/]+/).length;
+}
+function displayOf(entry) {
+  return entry.display || (entry.term.charAt(0).toUpperCase() + entry.term.slice(1));
+}
+
+function makeEmptyGrid() {
+  const g = [];
+  for (let r = 0; r < GRID_SIZE; r++) g.push(new Array(GRID_SIZE).fill(null));
+  return g;
+}
+
+function canPlace(grid, word, row, col, dir) {
+  const len = word.length;
+  if (dir === "across") {
+    if (col < 0 || col + len > GRID_SIZE || row < 0 || row >= GRID_SIZE) return false;
+    if (col - 1 >= 0 && grid[row][col - 1] !== null) return false;
+    if (col + len < GRID_SIZE && grid[row][col + len] !== null) return false;
+    for (let i = 0; i < len; i++) {
+      const c = col + i;
+      const existing = grid[row][c];
+      if (existing !== null && existing !== word[i]) return false;
+      if (existing === null) {
+        if (row - 1 >= 0 && grid[row - 1][c] !== null) return false;
+        if (row + 1 < GRID_SIZE && grid[row + 1][c] !== null) return false;
+      }
+    }
+    return true;
+  } else {
+    if (row < 0 || row + len > GRID_SIZE || col < 0 || col >= GRID_SIZE) return false;
+    if (row - 1 >= 0 && grid[row - 1][col] !== null) return false;
+    if (row + len < GRID_SIZE && grid[row + len][col] !== null) return false;
+    for (let i = 0; i < len; i++) {
+      const r = row + i;
+      const existing = grid[r][col];
+      if (existing !== null && existing !== word[i]) return false;
+      if (existing === null) {
+        if (col - 1 >= 0 && grid[r][col - 1] !== null) return false;
+        if (col + 1 < GRID_SIZE && grid[r][col + 1] !== null) return false;
+      }
+    }
+    return true;
+  }
+}
+
+function place(grid, word, row, col, dir) {
+  for (let i = 0; i < word.length; i++) {
+    if (dir === "across") grid[row][col + i] = word[i];
+    else grid[row + i][col] = word[i];
+  }
+}
+
+function findIntersectionPlacements(grid, word) {
+  const candidates = [];
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const existing = grid[r][c];
+      if (existing === null) continue;
+      for (let i = 0; i < word.length; i++) {
+        if (word[i] !== existing) continue;
+        candidates.push({ row: r, col: c - i, dir: "across" });
+        candidates.push({ row: r - i, col: c, dir: "down" });
+      }
+    }
+  }
+  return candidates;
+}
+
+function generateCrossword(entries, targetCount) {
+  // Defensive: exclude any term too long to safely fit even this grid, with margin.
+  const safeEntries = entries.filter(e => e.answer.length <= GRID_SIZE - 4);
+  const sorted = safeEntries.slice().sort((a, b) => b.answer.length - a.answer.length);
+  const grid = makeEmptyGrid();
+  const placed = [];
+  if (sorted.length === 0) {
+    return { width: 1, height: 1, placed: [] };
+  }
+
+  const first = sorted[0];
+  const startRow = Math.floor(GRID_SIZE / 2);
+  let startCol = Math.floor((GRID_SIZE - first.answer.length) / 2);
+  // Defensive: clamp so the first placement can never start out of bounds.
+  startCol = Math.max(0, Math.min(startCol, GRID_SIZE - first.answer.length));
+  place(grid, first.answer, startRow, startCol, "across");
+  placed.push({ ...first, row: startRow, col: startCol, dir: "across" });
+
+  for (let i = 1; i < sorted.length && placed.length < targetCount; i++) {
+    const entry = sorted[i];
+    const candidates = findIntersectionPlacements(grid, entry.answer);
+    let bestPlacement = null;
+    for (const cand of candidates) {
+      if (canPlace(grid, entry.answer, cand.row, cand.col, cand.dir)) {
+        bestPlacement = cand;
+        break;
+      }
+    }
+    if (bestPlacement) {
+      place(grid, entry.answer, bestPlacement.row, bestPlacement.col, bestPlacement.dir);
+      placed.push({ ...entry, row: bestPlacement.row, col: bestPlacement.col, dir: bestPlacement.dir });
+    }
+  }
+
+  let minR = GRID_SIZE, maxR = -1, minC = GRID_SIZE, maxC = -1;
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (grid[r][c] !== null) {
+        minR = Math.min(minR, r); maxR = Math.max(maxR, r);
+        minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+      }
+    }
+  }
+
+  const trimmed = placed.map(p => ({ ...p, row: p.row - minR, col: p.col - minC }));
+  return { width: maxC - minC + 1, height: maxR - minR + 1, placed: trimmed };
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function dedupedPool(cycleList) {
+  const seen = new Set();
+  const pool = [];
+  cycleList.forEach(c => c.words.forEach(w => {
+    if (!seen.has(w.term)) { seen.add(w.term); pool.push(w); }
+  }));
+  return pool;
+}
+
+function populateCycleSelect() {
+  const sel = document.getElementById("cycle-select");
+  const allOpt = document.createElement("option");
+  allOpt.value = "all";
+  allOpt.textContent = "All Cycles";
+  sel.appendChild(allOpt);
+  CYCLES.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = String(c.num);
+    const rangeLabel = c.num === 1 ? "Cycle 1" : "Cycles 1\u2013" + c.num;
+    opt.textContent = rangeLabel + " \u2014 through " + c.title;
+    sel.appendChild(opt);
+  });
+  sel.value = "all";
+  sel.addEventListener("change", newPuzzle);
+}
+
+function getActivePool() {
+  const sel = document.getElementById("cycle-select");
+  if (sel.value === "all") return dedupedPool(CYCLES);
+  const selectedNum = parseInt(sel.value, 10);
+  return dedupedPool(CYCLES.filter(c => c.num <= selectedNum));
+}
+
+let puzzle = null;
+let cellMeta = null; // cellMeta[r][c] = { number, across: entryIdx or null, down: entryIdx or null }
+let userGrid = null;
+let activeEntryIdx = null;
+let activeDir = "across";
+
+function buildPuzzleFromPool() {
+  const pool = getActivePool();
+  let entries = pool
+    .map(w => ({ answer: normalize(w.term), def: w.def, term: w.term, display: w.display }))
+    .filter(e => e.answer.length >= 3);
+  entries = shuffle(entries);
+  const wantCount = Math.min(TARGET_WORDS, entries.length);
+  // try a few times to get a good placement count
+  let best = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateCrossword(shuffle(entries), wantCount);
+    if (!best || candidate.placed.length > best.placed.length) best = candidate;
+    if (best.placed.length >= Math.min(10, wantCount)) break;
+  }
+  return best;
+}
+
+function computeCellMeta(p) {
+  const meta = [];
+  for (let r = 0; r < p.height; r++) {
+    meta.push(new Array(p.width).fill(null).map(() => ({ number: null, across: null, down: null, letter: null })));
+  }
+  p.placed.forEach((entry, idx) => {
+    for (let i = 0; i < entry.answer.length; i++) {
+      const r = entry.dir === "across" ? entry.row : entry.row + i;
+      const c = entry.dir === "across" ? entry.col + i : entry.col;
+      meta[r][c].letter = entry.answer[i];
+      if (entry.dir === "across") meta[r][c].across = idx;
+      else meta[r][c].down = idx;
+    }
+  });
+  // assign numbers: unique starting cells, sorted by row then col
+  const starts = [];
+  p.placed.forEach(entry => {
+    starts.push({ row: entry.row, col: entry.col });
+  });
+  const uniqueStarts = [];
+  const seen = new Set();
+  starts.sort((a, b) => a.row - b.row || a.col - b.col);
+  starts.forEach(s => {
+    const key = s.row + "," + s.col;
+    if (!seen.has(key)) { seen.add(key); uniqueStarts.push(s); }
+  });
+  uniqueStarts.forEach((s, i) => { meta[s.row][s.col].number = i + 1; });
+  return meta;
+}
+
+function newPuzzle() {
+  puzzle = buildPuzzleFromPool();
+  cellMeta = computeCellMeta(puzzle);
+  userGrid = [];
+  for (let r = 0; r < puzzle.height; r++) userGrid.push(new Array(puzzle.width).fill(""));
+  activeEntryIdx = puzzle.placed.length ? 0 : null;
+  activeDir = puzzle.placed.length ? puzzle.placed[0].dir : "across";
+  document.getElementById("result-panel").classList.remove("show");
+  document.getElementById("message").textContent = "";
+  renderGrid();
+  renderClues();
+}
+
+function renderGrid() {
+  const gridEl = document.getElementById("grid");
+  gridEl.innerHTML = "";
+  gridEl.style.gridTemplateColumns = `repeat(${puzzle.width}, 28px)`;
+  gridEl.style.gridTemplateRows = `repeat(${puzzle.height}, 28px)`;
+
+  for (let r = 0; r < puzzle.height; r++) {
+    for (let c = 0; c < puzzle.width; c++) {
+      const meta = cellMeta[r][c];
+      const cellDiv = document.createElement("div");
+      if (!meta.letter) {
+        cellDiv.className = "cell block";
+        gridEl.appendChild(cellDiv);
+        continue;
+      }
+      cellDiv.className = "cell";
+      cellDiv.dataset.row = r;
+      cellDiv.dataset.col = c;
+      if (meta.number) {
+        const num = document.createElement("div");
+        num.className = "num";
+        num.textContent = meta.number;
+        cellDiv.appendChild(num);
+      }
+      const input = document.createElement("input");
+      input.maxLength = 1;
+      input.value = userGrid[r][c] || "";
+      input.addEventListener("focus", () => onCellFocus(r, c));
+      input.addEventListener("input", (e) => onCellInput(r, c, e));
+      input.addEventListener("keydown", (e) => onCellKeydown(r, c, e));
+      cellDiv.appendChild(input);
+      gridEl.appendChild(cellDiv);
+    }
+  }
+  highlightActiveEntry();
+}
+
+function onCellFocus(r, c) {
+  const meta = cellMeta[r][c];
+  if (activeEntryIdx !== null) {
+    const cur = puzzle.placed[activeEntryIdx];
+    const stillOnCurrent = cur.dir === "across"
+      ? (r === cur.row && c >= cur.col && c < cur.col + cur.answer.length)
+      : (c === cur.col && r >= cur.row && r < cur.row + cur.answer.length);
+    if (stillOnCurrent) { highlightActiveEntry(); return; }
+  }
+  if (meta.across !== null) { activeEntryIdx = meta.across; activeDir = "across"; }
+  else if (meta.down !== null) { activeEntryIdx = meta.down; activeDir = "down"; }
+  highlightActiveEntry();
+}
+
+function onCellInput(r, c, e) {
+  const val = e.target.value.replace(/[^a-zA-Z]/g, "").toLowerCase().slice(-1);
+  e.target.value = val;
+  userGrid[r][c] = val;
+  if (val) moveToNext(r, c);
+}
+
+function onCellKeydown(r, c, e) {
+  if (e.key === "Backspace" && !userGrid[r][c]) {
+    moveToPrev(r, c);
+  } else if (e.key === "ArrowRight") { focusCell(r, c + 1); e.preventDefault(); }
+  else if (e.key === "ArrowLeft") { focusCell(r, c - 1); e.preventDefault(); }
+  else if (e.key === "ArrowDown") { focusCell(r + 1, c); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { focusCell(r - 1, c); e.preventDefault(); }
+  else if (e.key === " ") {
+    e.preventDefault();
+    const meta = cellMeta[r][c];
+    if (meta.across !== null && meta.down !== null) {
+      activeDir = activeDir === "across" ? "down" : "across";
+      activeEntryIdx = activeDir === "across" ? meta.across : meta.down;
+      highlightActiveEntry();
+    }
+  }
+}
+
+function focusCell(r, c) {
+  if (r < 0 || c < 0 || r >= puzzle.height || c >= puzzle.width) return;
+  if (!cellMeta[r][c].letter) return;
+  const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"] input`);
+  if (el) el.focus();
+}
+
+function moveToNext(r, c) {
+  if (activeDir === "across") focusCell(r, c + 1);
+  else focusCell(r + 1, c);
+}
+function moveToPrev(r, c) {
+  if (activeDir === "across") focusCell(r, c - 1);
+  else focusCell(r - 1, c);
+}
+
+function highlightActiveEntry() {
+  document.querySelectorAll(".cell").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".clue-item").forEach(el => el.classList.remove("active"));
+  if (activeEntryIdx === null) return;
+  const entry = puzzle.placed[activeEntryIdx];
+  for (let i = 0; i < entry.answer.length; i++) {
+    const r = entry.dir === "across" ? entry.row : entry.row + i;
+    const c = entry.dir === "across" ? entry.col + i : entry.col;
+    const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (el) el.classList.add("active");
+  }
+  const clueEl = document.getElementById("clue-" + activeDir + "-" + activeEntryIdx);
+  if (clueEl) clueEl.classList.add("active");
+}
+
+function renderClues() {
+  const across = document.getElementById("across-list");
+  const down = document.getElementById("down-list");
+  across.innerHTML = "";
+  down.innerHTML = "";
+  puzzle.placed.forEach((entry, idx) => {
+    const num = cellMeta[entry.row][entry.col].number;
+    const wc = wordCountOf(entry.term);
+    const wcNote = wc > 1 ? ` (${wc} words)` : "";
+    const div = document.createElement("div");
+    div.className = "clue-item";
+    div.id = "clue-" + entry.dir + "-" + idx;
+    div.innerHTML = `<b>${num}.</b> ${entry.def}${wcNote}`;
+    div.addEventListener("click", () => {
+      activeEntryIdx = idx;
+      activeDir = entry.dir;
+      focusCell(entry.row, entry.col);
+      highlightActiveEntry();
+    });
+    (entry.dir === "across" ? across : down).appendChild(div);
+  });
+}
+
+function checkAnswers() {
+  let allCorrect = true;
+  let anyFilled = false;
+  for (let r = 0; r < puzzle.height; r++) {
+    for (let c = 0; c < puzzle.width; c++) {
+      const meta = cellMeta[r][c];
+      if (!meta.letter) continue;
+      const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+      el.classList.remove("correct", "incorrect");
+      if (!userGrid[r][c]) { allCorrect = false; continue; }
+      anyFilled = true;
+      if (userGrid[r][c] === meta.letter) el.classList.add("correct");
+      else { el.classList.add("incorrect"); allCorrect = false; }
+    }
+  }
+  const msg = document.getElementById("message");
+  if (!anyFilled) msg.textContent = "Fill in some answers first!";
+  else if (allCorrect) msg.textContent = "All correct! Nice work.";
+  else msg.textContent = "Some letters aren't right yet \u2014 keep going.";
+}
+
+function revealPuzzle() {
+  for (let r = 0; r < puzzle.height; r++) {
+    for (let c = 0; c < puzzle.width; c++) {
+      const meta = cellMeta[r][c];
+      if (!meta.letter) continue;
+      userGrid[r][c] = meta.letter;
+      const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"] input`);
+      if (el) el.value = meta.letter;
+    }
+  }
+  const panel = document.getElementById("result-panel");
+  const list = document.getElementById("reveal-list");
+  list.innerHTML = "";
+  puzzle.placed.forEach((entry, idx) => {
+    const num = cellMeta[entry.row][entry.col].number;
+    const div = document.createElement("div");
+    div.className = "reveal-item";
+    div.innerHTML = `<b>${num} ${entry.dir === "across" ? "Across" : "Down"}:</b> ${displayOf(entry)} \u2014 ${entry.def}`;
+    list.appendChild(div);
+  });
+  panel.classList.add("show");
+  document.getElementById("message").textContent = "";
+}
+
+document.getElementById("new-puzzle-btn").addEventListener("click", newPuzzle);
+document.getElementById("check-btn").addEventListener("click", checkAnswers);
+document.getElementById("reveal-btn").addEventListener("click", revealPuzzle);
+
+populateCycleSelect();
+const urlParams = new URLSearchParams(window.location.search);
+const cycleParam = urlParams.get("cycle");
+if (cycleParam && (cycleParam === "all" || CYCLES.some(c => String(c.num) === cycleParam))) {
+  document.getElementById("cycle-select").value = cycleParam;
+}
+newPuzzle();
+</script>
+</body>
+</html>
